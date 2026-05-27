@@ -3,6 +3,11 @@ project(rom C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+# The gb-recompiled runtime uses C++20 features (designated initialisers,
+# concepts), so this is required when building under MSVC. LinksAwakening
+# happens to get away without it because MinGW defaults higher.
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -10,6 +15,14 @@ endif()
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-O3)
 endif()
+
+# The recompiler currently emits GCC-isms in the generated rom.c — chiefly
+# `__attribute__((noinline))` on per-chunk dispatch helpers. MinGW (what
+# LinksAwakening builds on) handles these natively; MSVC doesn't, and
+# mis-parses the function header so all `ctx` references become
+# undeclared. Force-include a tiny compat header to define those away.
+# The long-term home is upstream in c_emitter.cpp — see TODO in
+# msvc_compat.h. PR target: sp00nznet/gb-recompiled.
 
 # Multiplayer overlay (from sp00nznet/la-mp, embedded in the gb-recompiled
 # runtime). The runtime currently calls mp_session_init / mp_session_update
@@ -93,6 +106,13 @@ if(WIN32 AND GAME_MULTIPLAYER)
 endif()
 target_compile_definitions(gbrt PUBLIC GB_HAS_SDL2)
 
+# When linking the recompiled rom.c (which always provides gb_dispatch /
+# gb_dispatch_call), compile out the weak fallbacks in gbrt.c. Required
+# under MSVC, which doesn't honour `__attribute__((weak))` — the fallback
+# would otherwise duplicate the rom.c definitions at link time. Safe
+# (and slightly cleaner) on every other compiler too.
+target_compile_definitions(gbrt PUBLIC GB_RECOMPILED_DISPATCH)
+
 # rom.c and rom_rom.c are recompiler output. They are gitignored. Generate
 # them locally by running gbrecomp/recompiler/ against your own legally
 # obtained Pokemon Gold ROM.
@@ -101,5 +121,9 @@ add_executable(rom
     rom.c
     rom_rom.c
 )
+
+if(MSVC)
+    target_compile_options(rom PRIVATE "/FI${CMAKE_SOURCE_DIR}/msvc_compat.h")
+endif()
 
 target_link_libraries(rom gbrt)
