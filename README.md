@@ -30,11 +30,12 @@ Gold is the **first Generation II Pokémon title** attempted with this toolchain
 | Overworld walks, scrolls, NPCs render | ✅ |
 | **RTC persistence** (48-byte `.rtc` sidecar, wall-clock advance on load) | ✅ |
 | MSVC-portable generated code (upstream `c_emitter` shim) | ✅ |
-| Trace-guided recompile (`run_ground_truth.py`) to retire the 91 demoted functions | ⏳ |
-| Day/night cycle observably working (in-game time passes correctly) | ⏳ |
-| Save & load round-trips a full party + box | ⏳ |
-| Audio: investigate stutter when window loses focus | ⏳ |
-| Compatibility row on `gb-recompiled/COMPATIBILITY.md` flipped to ✓ | ⏳ |
+| Trace-guided recompile (`run_ground_truth.py` → 131k IR blocks, +58 functions) | ✅ |
+| Audio focus stutter fixed (vsync toggled on `SDL_WINDOWEVENT_FOCUS_LOST/GAINED`) | ✅ |
+| Compatibility row on `gb-recompiled/COMPATIBILITY.md` flipped to ✓ | ✅ |
+| Day/night cycle observably working (in-game time passes correctly) | ⏳ user-test |
+| Save & load round-trips a full party + box | ⏳ user-test |
+| Crystal port using the Gold recipe | ⏳ next |
 
 Updated on each push — check the [commits](../../commits/main) for the play-by-play.
 
@@ -147,14 +148,15 @@ The runtime also embeds Dear ImGui with palette/VRAM/OAM/asset viewers — toggl
 
 1. ~~**Boot** to the title screen.~~ Done.
 2. ~~**Intro** dialogue, Prof. Elm's lab.~~ Done.
-3. ~~**RTC persistence** in our `gb-recompiled` fork.~~ Done — landed in upstream commits `0cd971d` / `b37275d` / `fda073e`.
-4. **Starter selection**: walk to Mr. Pokémon, get the Mystery Egg, return.
-5. **Trace-guided recompile**: run `tools/run_ground_truth.py` against Gold to retire the 91 interpreter-demoted functions and tighten coverage on the long-tail code paths.
-6. **Time-of-day visuals**: confirm palette swaps at 06:00 / 10:00 / 18:00 / 22:00 game time, with the RTC actually advancing across relaunches.
-7. **Save round-trip**: PC box / party / RTC all survive a quit + relaunch.
-8. **Audio polish**: the user reports stutter when the window loses focus — likely a callback-pacing issue in the SDL audio loop. Worth investigating once gameplay is fully stable.
-9. **Long-play stress test**: run for a full in-game day at 4× speed, check for desyncs.
-10. **Crystal/Silver**: once Gold is stable, the same recipe should drop in.
+3. ~~**RTC persistence**.~~ Done — `sp00nznet/gb-recompiled@0cd971d`. 48-byte BGB-compatible `.rtc` sidecar, wall-clock advance on load (verified: forged ts → 42s + 8s elapsed → 50s mod 60 with carry into minutes, exactly per spec). Pokemon Gold then overwrites the hardware RTC from its own time-state in cart RAM on boot — that's the cart's design, not a bug; the runtime side persists correctly.
+4. ~~**Trace-guided recompile**.~~ Done — PyBoy random-play 5-min trace; IR blocks went from 68k → 131k, functions +58. 91 demoted-to-interpreter remain (per-function WASM size cap, not a coverage issue).
+5. ~~**Audio focus stutter**.~~ Fixed — `sp00nznet/gb-recompiled@12e939f`. Window-focus events toggle `SDL_RenderSetVSync` so unfocused windows don't compositor-throttle the present interval and starve the audio ring buffer.
+6. ~~**COMPATIBILITY.md flip**.~~ Done — `sp00nznet/gb-recompiled@dfa2bfa`. Pokemon Gold listed in a new "Recently verified (post-sweep)" section above the auto-harness table.
+7. **Starter selection**: walk to Mr. Pokémon, get the Mystery Egg, return.
+8. **Day/night visual verification**: needs an in-game save. Save at, e.g., 14:00 game time → quit → change system clock 12 hours → relaunch → expect night palette.
+9. **Save round-trip**: PC box / party / RTC all survive a quit + relaunch.
+10. **Long-play stress test**: run for a full in-game day at 4× speed, check for desyncs.
+11. **Crystal / Silver**: once Gold is stable, the same recipe drops in. Same MBC3+TIMER+RAM+BATTERY cart type, same recompile flow.
 
 Possible (much later) stretch goals:
 
