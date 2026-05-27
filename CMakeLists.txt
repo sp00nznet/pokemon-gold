@@ -16,14 +16,6 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-O3)
 endif()
 
-# The recompiler currently emits GCC-isms in the generated rom.c — chiefly
-# `__attribute__((noinline))` on per-chunk dispatch helpers. MinGW (what
-# LinksAwakening builds on) handles these natively; MSVC doesn't, and
-# mis-parses the function header so all `ctx` references become
-# undeclared. Force-include a tiny compat header to define those away.
-# The long-term home is upstream in c_emitter.cpp — see TODO in
-# msvc_compat.h. PR target: sp00nznet/gb-recompiled.
-
 # Multiplayer overlay (from sp00nznet/la-mp, embedded in the gb-recompiled
 # runtime). The runtime currently calls mp_session_init / mp_session_update
 # / mp_menu_init / mp_indicators_render unconditionally from
@@ -120,6 +112,10 @@ target_compile_definitions(gbrt PUBLIC LA_HAS_IMGUI)
 # (and slightly cleaner) on every other compiler too.
 target_compile_definitions(gbrt PUBLIC GB_RECOMPILED_DISPATCH)
 
+# Brand the window. The runtime defaults to "Game Boy Recompiled" if no
+# project sets GBRT_WINDOW_TITLE.
+target_compile_definitions(gbrt PUBLIC GBRT_WINDOW_TITLE="Pokemon Gold Recompiled")
+
 # rom.c and rom_rom.c are recompiler output. They are gitignored. Generate
 # them locally by running gbrecomp/recompiler/ against your own legally
 # obtained Pokemon Gold ROM.
@@ -128,9 +124,5 @@ add_executable(rom
     rom.c
     rom_rom.c
 )
-
-if(MSVC)
-    target_compile_options(rom PRIVATE "/FI${CMAKE_SOURCE_DIR}/msvc_compat.h")
-endif()
 
 target_link_libraries(rom gbrt)

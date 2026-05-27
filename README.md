@@ -4,7 +4,14 @@
 
 This repository ports **Pokémon Gold Version (Game Boy Color, 1999)** to native code via [**gb-recompiled**](https://github.com/sp00nznet/gb-recompiled) — a static recompiler that lifts SM83 (Z80-ish) assembly directly into C. The result builds and runs at full CPU speed on Windows, Linux, and macOS, with no emulator in the loop.
 
-Gold is the **first Generation II Pokémon title** attempted with this toolchain. Gen 2 introduces an **MBC3 mapper with a real-time clock** — the chip that drives the day/night cycle, weekly events, and Apricorn/berry timers. The mapper and RTC registers are already implemented in [our fork](https://github.com/sp00nznet/gb-recompiled); the RTC save-persistence layer is the first piece of new runtime work this project will tackle.
+Gold is the **first Generation II Pokémon title** attempted with this toolchain. Gen 2 introduces an **MBC3 mapper with a real-time clock** — the chip that drives the day/night cycle, weekly events, and Apricorn/berry timers. The mapper and RTC registers were already in [our fork](https://github.com/sp00nznet/gb-recompiled); RTC save persistence (BGB-compatible 48-byte `.rtc` sidecar with wall-clock advancement) landed [upstream](https://github.com/sp00nznet/gb-recompiled/commits/main) as part of this port.
+
+|  |  |
+|---|---|
+| ![Title screen](screenshots/logo.png) | ![Prof. Elm](screenshots/oak.png) |
+| Boots straight to the title screen. | "Hello! Sorry to keep you waiting." — and he isn't. |
+| ![Wild Hoothoot](screenshots/battle.png) | ![Overworld](screenshots/world.png) |
+| First wild encounter — Hoothoot, as Gen 2 demands. | Overworld; CGB palettes, sprites, scrolling all behaving. |
 
 ---
 
@@ -16,16 +23,18 @@ Gold is the **first Generation II Pokémon title** attempted with this toolchain
 | `gb-recompiled` toolchain builds locally (MSVC + vcpkg SDL2) | ✅ |
 | First successful recompile (`gbrecomp` → 58 MB `rom.c` + 13 MB `rom_rom.c`) | ✅ |
 | `rom.exe` links cleanly under MSVC + vcpkg SDL2 | ✅ |
-| Runtime boots, identifies cart as `POKEMON_GLDAAUE`, allocates 32 KB MBC3 RAM, exits clean | ✅ |
-| First trace capture (`run_ground_truth.py`) | ⏳ |
-| First boot to title screen (visually confirmed) | ⏳ |
-| New game → intro plays | ⏳ |
-| Reach Mr. Pokémon, get starter | ⏳ |
-| RTC persistence patch in `gb-recompiled` fork | ⏳ |
-| Day/night cycle observably working | ⏳ |
-| Save & load round-trips correctly | ⏳ |
-| Audio fully clean | ⏳ |
-| Compatibility column on `gb-recompiled/COMPATIBILITY.md` flipped to ✓ | ⏳ |
+| Runtime boots, identifies cart `POKEMON_GLDAAUE`, allocates 32 KB MBC3 RAM | ✅ |
+| First boot to title screen (visually confirmed) | ✅ |
+| New game → intro plays → Prof. Elm dialogue | ✅ |
+| Wild encounter renders (Hoothoot, full sprite + palette) | ✅ |
+| Overworld walks, scrolls, NPCs render | ✅ |
+| **RTC persistence** (48-byte `.rtc` sidecar, wall-clock advance on load) | ✅ |
+| MSVC-portable generated code (upstream `c_emitter` shim) | ✅ |
+| Trace-guided recompile (`run_ground_truth.py`) to retire the 91 demoted functions | ⏳ |
+| Day/night cycle observably working (in-game time passes correctly) | ⏳ |
+| Save & load round-trips a full party + box | ⏳ |
+| Audio: investigate stutter when window loses focus | ⏳ |
+| Compatibility row on `gb-recompiled/COMPATIBILITY.md` flipped to ✓ | ⏳ |
 
 Updated on each push — check the [commits](../../commits/main) for the play-by-play.
 
@@ -60,7 +69,9 @@ A small fallback interpreter handles indirect jumps the static analyser couldn't
 
 ### Prerequisites
 
-- **Windows**: [MSYS2](https://www.msys2.org/) with the MinGW64 toolchain — `pacman -S mingw-w64-x86_64-{cmake,ninja,clang,SDL2}`
+- **Windows**: Either path works.
+  - **MSVC**: Visual Studio 2022 Build Tools (the C++ workload), CMake ≥ 3.16, Ninja, and SDL2 via [vcpkg](https://github.com/microsoft/vcpkg) (`vcpkg install sdl2:x64-windows`). Configure with `-DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows`. **This is what the current build is verified against.**
+  - **MinGW**: [MSYS2](https://www.msys2.org/) with the MinGW64 toolchain — `pacman -S mingw-w64-x86_64-{cmake,ninja,clang,SDL2}`. Used by the sibling LinksAwakening project.
 - **macOS / Linux**: `cmake`, `ninja`, `clang` or `gcc`, `SDL2` dev headers
 - **Python 3** (for the trace-capture script)
 
@@ -106,7 +117,7 @@ ninja -C build
 
 Gold is meaningfully more involved than Link's Awakening or Gen 1 Pokémon:
 
-- **MBC3 + RTC** — the real-time clock advances even with the game off, persisting day/night state, Bug-Catching Contest schedule, weekly events (Lapras on Fridays, Bug Contest on T/Th/Sa…), and timed berry/Apricorn growth. Our fork latches/reads/writes the RTC registers correctly, but doesn't yet **persist** them across runs — so a fresh launch of the game will see "the clock has been reset" until [#9](../../issues) lands.
+- **MBC3 + RTC** — the real-time clock advances even with the game off, persisting day/night state, Bug-Catching Contest schedule, weekly events (Lapras on Fridays, Bug Contest on T/Th/Sa…), and timed berry/Apricorn growth. The fork latches/reads/writes the RTC registers, and **now persists them** via a BGB-compatible 48-byte `.rtc` sidecar alongside the `.sav`. On load, the runtime advances the registers by the wall-clock interval since the last save — same behaviour as a real cart's onboard oscillator running while the system is off.
 - **2 MB ROM, 8 KB cart RAM** — twice Link's Awakening's footprint. Generated C grows proportionally.
 - **CGB-mandatory** — Gold *only* boots in Color mode, so the runtime's CGB paths (palette RAM, VRAM banking, HDMA) get exercised hard.
 - **Time-of-day palette swaps** — happen on a 4-period schedule driven by the RTC, not the in-game clock. Catches bugs the LA palette test never would.
@@ -134,14 +145,16 @@ The runtime also embeds Dear ImGui with palette/VRAM/OAM/asset viewers — toggl
 
 ## Roadmap
 
-1. **Boot**: get past the Game Freak / Game Boy boot screens to the title.
-2. **Intro**: trigger New Game; ensure Prof. Elm's lab loads.
-3. **Starter selection**: walk to Mr. Pokémon, get the Mystery Egg, return.
-4. **RTC persistence**: implement `RTC bytes appended to .sav` in `gb-recompiled`'s `gbrt.c` (`gb_context_save_ram` / `gb_context_load_rom`). Submit upstream **to our fork only**, not arcanite24's repo.
-5. **Time-of-day visuals**: confirm palette swaps at 06:00 / 10:00 / 18:00 / 22:00 game time.
-6. **Save round-trip**: PC box / party / RTC all survive a quit + relaunch.
-7. **Long-play stress test**: run for a full in-game day at 4× speed, check for desyncs.
-8. **Crystal/Silver**: once Gold is stable, the same recipe should drop in.
+1. ~~**Boot** to the title screen.~~ Done.
+2. ~~**Intro** dialogue, Prof. Elm's lab.~~ Done.
+3. ~~**RTC persistence** in our `gb-recompiled` fork.~~ Done — landed in upstream commits `0cd971d` / `b37275d` / `fda073e`.
+4. **Starter selection**: walk to Mr. Pokémon, get the Mystery Egg, return.
+5. **Trace-guided recompile**: run `tools/run_ground_truth.py` against Gold to retire the 91 interpreter-demoted functions and tighten coverage on the long-tail code paths.
+6. **Time-of-day visuals**: confirm palette swaps at 06:00 / 10:00 / 18:00 / 22:00 game time, with the RTC actually advancing across relaunches.
+7. **Save round-trip**: PC box / party / RTC all survive a quit + relaunch.
+8. **Audio polish**: the user reports stutter when the window loses focus — likely a callback-pacing issue in the SDL audio loop. Worth investigating once gameplay is fully stable.
+9. **Long-play stress test**: run for a full in-game day at 4× speed, check for desyncs.
+10. **Crystal/Silver**: once Gold is stable, the same recipe should drop in.
 
 Possible (much later) stretch goals:
 
