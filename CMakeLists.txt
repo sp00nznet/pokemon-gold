@@ -105,6 +105,13 @@ if(WIN32 AND GAME_MULTIPLAYER)
     target_link_libraries(gbrt PUBLIC ws2_32 winmm)
 endif()
 target_compile_definitions(gbrt PUBLIC GB_HAS_SDL2)
+# We list menu_gui.cpp and asset_viewer.cpp directly (rather than going
+# through the runtime's own CMakeLists which gates them on LA_HAS_IMGUI
+# and supplies stubs when off). They unconditionally call ImGui APIs,
+# so the matching context setup in platform_sdl.cpp must run too —
+# enable LA_HAS_IMGUI here. Without this, menu_gui_init crashes during
+# gb_platform_init.
+target_compile_definitions(gbrt PUBLIC LA_HAS_IMGUI)
 
 # When linking the recompiled rom.c (which always provides gb_dispatch /
 # gb_dispatch_call), compile out the weak fallbacks in gbrt.c. Required

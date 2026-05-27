@@ -16,8 +16,9 @@ Gold is the **first Generation II Pokémon title** attempted with this toolchain
 | `gb-recompiled` toolchain builds locally (MSVC + vcpkg SDL2) | ✅ |
 | First successful recompile (`gbrecomp` → 58 MB `rom.c` + 13 MB `rom_rom.c`) | ✅ |
 | `rom.exe` links cleanly under MSVC + vcpkg SDL2 | ✅ |
+| Runtime boots, identifies cart as `POKEMON_GLDAAUE`, allocates 32 KB MBC3 RAM, exits clean | ✅ |
 | First trace capture (`run_ground_truth.py`) | ⏳ |
-| First boot to title screen | ⏳ |
+| First boot to title screen (visually confirmed) | ⏳ |
 | New game → intro plays | ⏳ |
 | Reach Mr. Pokémon, get starter | ⏳ |
 | RTC persistence patch in `gb-recompiled` fork | ⏳ |
