@@ -35,7 +35,7 @@ Gold is the **first Generation II Pokémon title** attempted with this toolchain
 | Compatibility row on `gb-recompiled/COMPATIBILITY.md` flipped to ✓ | ✅ |
 | Day/night cycle observably working (in-game time passes correctly) | ⏳ user-test |
 | Save & load round-trips a full party + box | ⏳ user-test |
-| Crystal port using the Gold recipe | ⏳ next |
+| Crystal port using the Gold recipe | ✅ [sp00nznet/pokemon-crystal](https://github.com/sp00nznet/pokemon-crystal) |
 
 Updated on each push — check the [commits](../../commits/main) for the play-by-play.
 
