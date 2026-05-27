@@ -179,16 +179,26 @@ Documented in pret/pokegold's `engine/link/` directory. We don't need to underst
 
 ## 8 · Implementation phases
 
-1. **`--save-dir` flag** — small, contained, useful immediately even for solo testing.
-2. **Serial subsystem in gbrt** — replace the printf, add callback. Verify solo play is unchanged.
-3. **mp_gen2 module** — ENet bridge, host/join CLI flags.
-4. **UI overlay** — Cable Club submenu, status indicator.
-5. **Bump submodule in all three port repos.**
-6. **Test**: Gold ↔ Crystal trade, on localhost.
-7. **Test**: battle, same pair.
-8. **Iterate**: timeouts, disconnect handling, edge cases.
+1. ~~**`--save-dir` flag**~~ ✅ Done — `sp00nznet/gb-recompiled@980e784`. Two rom.exe windows now keep separate `.sav`/`.rtc` files when given `--save-dir <path>`.
+2. ~~**Serial subsystem in gbrt**~~ ✅ Done — same commit as below; `GBPlatformCallbacks.serial_exchange` + `GB_SERIAL_MASTER`/`SLAVE`; old stdout-printf retired.
+3. ~~**mp_gen2 module**~~ ✅ Done — `sp00nznet/gb-recompiled@d07d810`. New `runtime/src/multiplayer/mp_gen2_serial.{h,cpp}`; reliable ENet channel on port 21385; HELLO + SERIAL_BYTE wire format; SDL_Delay(1)ms pump loop with 2 s timeout.
+4. ~~**UI**~~ ✅ Done — same commit. `Multiplayer → Cable Club (Gen 2 link-cable)` submenu with Host / Connect / Disconnect.
+5. ~~**Bump submodule in all three port repos.**~~ ✅ Done — all three Gen 2 ports now share `gbrecomp@d07d810`. Each `rom_main.c` parses `--mp-host PORT` and `--mp-connect HOST:PORT`.
+6. ⏳ **Test**: Gold ↔ Crystal trade, on localhost. **Network connection verified end-to-end:**
+   ```
+   Gold:    [MP-GEN2] Listening on port 21385
+            [MP-GEN2] Partner connected from 100007f:53196
+            [MP-GEN2] Peer hello received (proto v1)
+   Crystal: [MP-GEN2] Connecting to 127.0.0.1:21385
+            [MP-GEN2] Connected
+            [MP-GEN2] Peer hello received (proto v1)
+            [MP-GEN2] Peer disconnected (when Gold exited)
+   ```
+   **Actual byte exchange still pending** — both games must reach Cable Club in-game (post-Prof.-Elm-errand, post-first-Pokémon-Center) before either writes SC, so the cable infrastructure is exercised. The plumbing is in place; the next test needs gameplay.
+7. ⏳ **Test**: battle, same pair.
+8. ⏳ **Iterate**: timeouts, disconnect handling, edge cases.
 
-Steps 1-3 are mechanical. Step 6 is the moment-of-truth: either the games handshake and trade, or we're debugging at the byte level.
+The hard infrastructure (steps 1–5) is done. The remaining work is just driving two games to the Cable Club and watching what happens.
 
 ---
 
